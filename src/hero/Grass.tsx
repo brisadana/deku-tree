@@ -7,6 +7,7 @@ import { heroConfig } from './hero.config'
 import { treeParts } from './DekuTree'
 import { buildTreeFootprint, useGroundField, type GroundField } from './groundField'
 import { HU } from './uniforms'
+import { heroScroll } from './scroll'
 import { pointer } from './usePointer'
 
 /** Max trail points the shader loops over (uniform array size; reload). */
@@ -291,7 +292,7 @@ export function Grass() {
     uniforms.uVariation.value = c.variation
 
     // trail: drop a point every `trailSpacing` s while the cursor moves over the ground
-    if (pointer.onGround && !env.reducedMotion) {
+    if (pointer.onGround && !env.reducedMotion && heroScroll.p < heroConfig.scroll.interactionOutBy) {
       const moved = trail.last.distanceTo({ x: pointer.ground.x, y: pointer.ground.z } as THREE.Vector2)
       if (now - trail.lastPush >= c.trailSpacing && moved > 0.04) {
         const strength = THREE.MathUtils.clamp(pointer.groundSpeed / 5, 0.2, 1)

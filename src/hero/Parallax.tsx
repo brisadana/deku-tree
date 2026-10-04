@@ -3,6 +3,7 @@ import { useEffect, type RefObject } from 'react'
 import * as THREE from 'three'
 import { env } from '../lib/env'
 import { heroConfig } from './hero.config'
+import { heroScroll, ramp } from './scroll'
 import { pointer } from './usePointer'
 
 const toRad = THREE.MathUtils.degToRad
@@ -87,6 +88,10 @@ export function Parallax({ world, sky }: Props) {
       // left the window: settle back to centre in ~returnTime
       k = 4.7 / c.returnTime
     }
+    // fade out during the dive, so the path lines up with the mouth
+    const keep = 1 - ramp(heroScroll.p, 0, heroConfig.scroll.interactionOutBy)
+    tx *= keep
+    ty *= keep
     spring(yaw, tx * toRad(c.yaw), k, dt)
     spring(pitch, ty * toRad(c.pitch), k, dt)
 

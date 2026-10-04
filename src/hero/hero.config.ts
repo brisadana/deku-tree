@@ -268,6 +268,31 @@ export const heroConfig = {
     },
   },
 
+  /**
+   * Scroll: the camera leaves the hero framing, follows the path and enters the tree
+   * through its open mouth; the screen settles into the dark tone of the next section.
+   * Mouth (tree frame, from a depth scan): opening x ≈ -1…1, y ≈ 0…3, front face z ≈ 5,
+   * back wall z ≈ 1.5.
+   */
+  scroll: {
+    /** Extra scroll distance (in viewport heights) over which the hero stays pinned. */
+    lengthVh: 220,
+    /** Smoothing of the scroll-driven camera (1/s; higher = tighter to the scrollbar). */
+    damping: 6,
+    /** Keyframes after the hero pose (p = 0): p, camera position, look-at target, fov (desktop / mobile). */
+    keys: [
+      { p: 0.42, position: [0, 3.4, 21] as [number, number, number], target: [0, 2.2, 4] as [number, number, number], fov: 38, fovMobile: 54 },
+      { p: 0.74, position: [0.1, 1.55, 8] as [number, number, number], target: [0.1, 1.3, 1.5] as [number, number, number], fov: 44, fovMobile: 58 },
+      { p: 1, position: [0.1, 1.35, 2.9] as [number, number, number], target: [0.1, 1.3, -2] as [number, number, number], fov: 60, fovMobile: 70 },
+    ],
+    /** Dark veil (the next section's tone) closes in from the edges between these progress values. */
+    veilFrom: 0.62,
+    veilTo: 0.96,
+    /** Overlay type fades out by this progress; parallax and cursor effects fade out by this one. */
+    overlayOutBy: 0.18,
+    interactionOutBy: 0.3,
+  },
+
   entrance: {
     skyFade: 1.2,
     sceneDelay: 0.35,

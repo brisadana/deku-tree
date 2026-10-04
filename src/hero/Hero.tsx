@@ -18,6 +18,9 @@ import { Grass, trail } from './Grass'
 import { HU } from './uniforms'
 import { pointer, PointerTracker } from './usePointer'
 import { preloadModels } from './useModels'
+import { heroScroll, ramp, readScroll, smoother, stepScroll } from './scroll'
+import { Inside } from './Inside'
+import { treeParts } from './DekuTree'
 import { Lights, World } from './World'
 import styles from './Hero.module.css'
 
@@ -31,19 +34,68 @@ const loaded = { value: false }
 
 const ease = (t: number) => 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 3)
 
-/** Fixed camera: desktop or mobile framing from the config (re-read every frame for the GUI). */
+const camTmp = {
+  from: new THREE.Vector3(),
+  to: new THREE.Vector3(),
+  fromT: new THREE.Vector3(),
+  toT: new THREE.Vector3(),
+  pos: new THREE.Vector3(),
+  target: new THREE.Vector3(),
+}
+
+/**
+ * Camera: the hero framing (desktop or mobile) at scroll 0, then along the scroll keys
+ * (given in the tree's frame) into the mouth. Smootherstep between keys, so each reads as a beat.
+ * With reduced motion the camera stays put and only the veil fades.
+ */
 function HeroCamera() {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
   const size = useThree((s) => s.size)
-  useFrame(() => {
+  useFrame((_, rawDt) => {
     const c = heroConfig.camera
+    const sc = heroConfig.scroll
     // narrow or portrait screens get the wider mobile framing so the whole trunk + face fit
     const narrow = size.width < c.mobileBreakpoint || size.width / size.height < c.portraitAspect
-    const f = narrow ? c.mobile : c.desktop
-    camera.position.set(...f.position)
-    camera.lookAt(...f.target)
-    if (camera.fov !== f.fov || camera.near !== c.near || camera.far !== c.far) {
-      camera.fov = f.fov
+    const hero = narrow ? c.mobile : c.desktop
+    stepScroll(Math.min(rawDt, 0.1), sc.damping, env.reducedMotion)
+    const p = env.reducedMotion ? 0 : heroScroll.p
+
+    const frame = treeParts.frame
+    const toWorld = (v: THREE.Vector3) => (frame ? frame.localToWorld(v) : v)
+    let fov = hero.fov
+    if (p <= 0 || !frame) {
+      camTmp.pos.set(...hero.position)
+      camTmp.target.set(...hero.target)
+    } else {
+      // previous key (the hero pose is key 0, already in world space)
+      let prevP = 0
+      camTmp.from.set(...hero.position)
+      camTmp.fromT.set(...hero.target)
+      let prevFov = hero.fov
+      for (const k of sc.keys) {
+        const kFov = narrow ? k.fovMobile : k.fov
+        if (p <= k.p) {
+          const t = smoother((p - prevP) / Math.max(1e-6, k.p - prevP))
+          toWorld(camTmp.to.set(...k.position))
+          toWorld(camTmp.toT.set(...k.target))
+          camTmp.pos.lerpVectors(camTmp.from, camTmp.to, t)
+          camTmp.target.lerpVectors(camTmp.fromT, camTmp.toT, t)
+          fov = THREE.MathUtils.lerp(prevFov, kFov, t)
+          break
+        }
+        prevP = k.p
+        prevFov = kFov
+        toWorld(camTmp.from.set(...k.position))
+        toWorld(camTmp.fromT.set(...k.target))
+        camTmp.pos.copy(camTmp.from)
+        camTmp.target.copy(camTmp.fromT)
+        fov = kFov
+      }
+    }
+    camera.position.copy(camTmp.pos)
+    camera.lookAt(camTmp.target)
+    if (Math.abs(camera.fov - fov) > 1e-3 || camera.near !== c.near || camera.far !== c.far) {
+      camera.fov = fov
       camera.near = c.near
       camera.far = c.far
       camera.updateProjectionMatrix()
@@ -146,37 +198,95 @@ export function Hero() {
   const maxDpr = Math.min(window.devicePixelRatio || 1, env.isMobile ? heroConfig.renderer.dprMobile : heroConfig.renderer.dprDesktop)
   // adaptive resolution: if the frame rate drops, render fewer pixels (down to dpr 1)
   const [dpr, setDpr] = useState(maxDpr)
+  const track = useRef<HTMLDivElement>(null)
+  const stage = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    heroScroll.track = track.current
+    readScroll()
+    heroScroll.p = heroScroll.raw
+    window.addEventListener('scroll', readScroll, { passive: true })
+    window.addEventListener('resize', readScroll)
+    return () => {
+      window.removeEventListener('scroll', readScroll)
+      window.removeEventListener('resize', readScroll)
+      heroScroll.track = null
+    }
+  }, [])
+
   return (
-    <section className={styles.hero} aria-label="The Great Deku Tree">
-      <div className={styles.canvas} aria-hidden="true">
-        <Canvas
-          dpr={dpr}
-          shadows={{ type: THREE.PCFShadowMap }}
-          gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
-          camera={{ fov: 35, position: [0, 6, 34], near: 0.5, far: 900 }}
-        >
-          <PerformanceMonitor
-            factor={1}
-            flipflops={4}
-            onChange={({ factor }) => setDpr(Math.max(1, Math.round((1 + (maxDpr - 1) * factor) * 4) / 4))}
-          />
-          <Scene />
-          <VisibilityPause />
-          {params.debug && <Debug />}
-        </Canvas>
+    <>
+      <div ref={track} className={styles.track} style={{ height: `calc(100svh + ${heroConfig.scroll.lengthVh}vh)` }}>
+        <section ref={stage} className={styles.stage} aria-label="The Great Deku Tree">
+          <div className={styles.canvas} aria-hidden="true">
+            <Canvas
+              dpr={dpr}
+              shadows={{ type: THREE.PCFShadowMap }}
+              gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
+              camera={{ fov: 35, position: [0, 6, 34], near: 0.5, far: 900 }}
+            >
+              <PerformanceMonitor
+                factor={1}
+                flipflops={4}
+                onChange={({ factor }) => setDpr(Math.max(1, Math.round((1 + (maxDpr - 1) * factor) * 4) / 4))}
+              />
+              <Scene />
+              <ScrollFx stage={stage} />
+              <RenderGate />
+              {params.debug && <Debug />}
+            </Canvas>
+          </div>
+          <div className={styles.veil} aria-hidden="true" />
+          <Overlay />
+        </section>
       </div>
-      <Overlay />
-    </section>
+      <Inside />
+    </>
   )
 }
 
-/** Pauses rendering while the tab is hidden. */
-function VisibilityPause() {
+/** Writes scroll-driven CSS variables on the stage: --exit (overlay fade) and --veil (dark close-in). */
+function ScrollFx({ stage }: { stage: React.RefObject<HTMLElement | null> }) {
+  const last = useRef({ exit: -1, veil: -1 })
+  useFrame(() => {
+    const el = stage.current
+    if (!el) return
+    const sc = heroConfig.scroll
+    const p = env.reducedMotion ? heroScroll.raw : heroScroll.p
+    let exit = ramp(p, 0, sc.overlayOutBy)
+    let veil = env.reducedMotion ? ramp(p, 0.15, 0.85) : smoother(ramp(p, sc.veilFrom, sc.veilTo))
+    // snap the ends so the veil is fully open / fully closed
+    if (exit > 0.998) exit = 1
+    if (veil > 0.998) veil = 1
+    if (Math.abs(exit - last.current.exit) > 1e-3) el.style.setProperty('--exit', exit.toFixed(3))
+    if (Math.abs(veil - last.current.veil) > 1e-3) el.style.setProperty('--veil', veil.toFixed(3))
+    last.current = { exit, veil }
+  })
+  return null
+}
+
+/**
+ * Stops rendering while the tab is hidden, or once the camera is fully inside the tree
+ * (the veil is opaque); scrolling back up resumes it.
+ */
+function RenderGate() {
   const setFrameloop = useThree((s) => s.setFrameloop)
+  const frameloop = useThree((s) => s.frameloop)
   useEffect(() => {
-    const on = () => setFrameloop(document.hidden ? 'never' : 'always')
-    document.addEventListener('visibilitychange', on)
-    return () => document.removeEventListener('visibilitychange', on)
+    const update = () => {
+      const inside = heroScroll.raw >= 1 && heroScroll.p >= 0.999
+      setFrameloop(document.hidden || inside ? 'never' : 'always')
+    }
+    document.addEventListener('visibilitychange', update)
+    window.addEventListener('scroll', update, { passive: true })
+    return () => {
+      document.removeEventListener('visibilitychange', update)
+      window.removeEventListener('scroll', update)
+    }
   }, [setFrameloop])
+  // the damped progress reaches 1 a little after the scrollbar does: check once it settles
+  useFrame(() => {
+    if (frameloop === 'always' && heroScroll.raw >= 1 && heroScroll.p >= 0.999) setFrameloop('never')
+  })
   return null
 }

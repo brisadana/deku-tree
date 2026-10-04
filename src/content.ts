@@ -49,6 +49,13 @@ export const hero = {
   hintEnter: 'Scroll to enter',
 }
 
+/** The section right after the hero, once the camera is inside the tree (dark tone). */
+export const inside = {
+  eyebrow: 'Chapter I',
+  title: 'Inside the Deku Tree',
+  body: 'Roots older than the forest. Something has been feeding on them.',
+}
+
 export const hud = {
   wordmark: 'DEKU',
   soundOn: 'Sound on',

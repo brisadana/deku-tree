@@ -1,12 +1,40 @@
-.hero {
+/* The hero is pinned while the page scrolls through its track (the dive into the mouth). */
+.track {
   position: relative;
+  background: var(--deep);
+}
+
+.stage {
+  position: sticky;
+  top: 0;
   height: 100vh;
   height: 100svh;
   overflow: hidden;
   background: #000;
+  --exit: 0;
+  --veil: 0;
 }
 
 .canvas {
   position: absolute;
   inset: 0;
+}
+
+/* the next section's dark tone closing in from the edges as the camera enters the mouth */
+.veil {
+  --r: calc((1 - var(--veil)) * 85%);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 85% at 50% 52%, transparent var(--r), var(--deep) calc(var(--r) + (1 - var(--veil)) * 30% + 0.1%));
+  opacity: min(1, calc(var(--veil) * 4));
+}
+
+/* …and a flat fill that takes over at the end, so the hand-off to the next section is seamless */
+.veil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--deep);
+  opacity: calc((var(--veil) - 0.6) * 2.5);
 }

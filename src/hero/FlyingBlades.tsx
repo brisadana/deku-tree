@@ -6,6 +6,7 @@ import { heroConfig } from './hero.config'
 import { meadowAt } from './Grass'
 import { useGroundField } from './groundField'
 import { HU } from './uniforms'
+import { heroScroll } from './scroll'
 import { pointer } from './usePointer'
 
 /**
@@ -232,7 +233,7 @@ export function FlyingBlades() {
     const t = HU.uTime.value
 
     // spawn budget grows with cursor speed over the grass; nothing when still
-    if (pointer.onGround && pointer.groundSpeed > c.minSpeed && HU.uReveal.value > 0.9) {
+    if (pointer.onGround && pointer.groundSpeed > c.minSpeed && HU.uReveal.value > 0.9 && heroScroll.p < heroConfig.scroll.interactionOutBy) {
       const k = THREE.MathUtils.clamp((pointer.groundSpeed - c.minSpeed) / (c.speedForMax - c.minSpeed), 0, 1)
       state.budget = Math.min(state.budget + k * c.maxPer100ms * 10 * dt, c.maxPer100ms)
       while (state.budget >= 1) {
