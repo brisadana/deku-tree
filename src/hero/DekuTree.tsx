@@ -64,6 +64,7 @@ export function DekuTree({ children }: Props) {
     }),
     [],
   )
+  const scratch = useMemo(() => ({ inv: new THREE.Matrix4(), mesh: null as THREE.Mesh | null }), [])
 
   // scale + centre once, from the untransformed bounds
   const fit = useMemo(() => {
@@ -103,16 +104,16 @@ export function DekuTree({ children }: Props) {
     uniforms.uBreathPeriod.value = c.breathPeriod
     uniforms.uTrunkTop.value = c.trunkTop
 
-    // mesh-local ↔ tree-frame matrices (only the single tree mesh needs them)
+    // mesh-local ↔ tree-frame matrices (the model is a single mesh). Both live under the
+    // frame, so this only changes when the yaw/offset config changes; cheap enough per frame.
     if (!frame.current) return
+    if (!scratch.mesh) scene.traverse((o) => (o as THREE.Mesh).isMesh && (scratch.mesh ??= o as THREE.Mesh))
+    const m = scratch.mesh
+    if (!m) return
     frame.current.updateMatrixWorld(true)
-    const frameInv = new THREE.Matrix4().copy(frame.current.matrixWorld).invert()
-    scene.traverse((o) => {
-      const m = o as THREE.Mesh
-      if (!m.isMesh) return
-      uniforms.uToTree.value.multiplyMatrices(frameInv, m.matrixWorld)
-      uniforms.uFromTree.value.copy(uniforms.uToTree.value).invert()
-    })
+    scratch.inv.copy(frame.current.matrixWorld).invert()
+    uniforms.uToTree.value.multiplyMatrices(scratch.inv, m.matrixWorld)
+    uniforms.uFromTree.value.copy(uniforms.uToTree.value).invert()
   })
 
   return (

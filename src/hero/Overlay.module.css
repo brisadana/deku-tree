@@ -1,0 +1,192 @@
+/* The 3D is the hero; type is small and quiet. */
+.overlay {
+  /* Top bar sits on the palest part of the sky, so it uses dark forest ink for contrast.
+     Flip to var(--parchment) if the sky ever gets darker up there. */
+  --top-ink: var(--shadow);
+  --bottom-ink: var(--parchment);
+  --gutter-x: clamp(16px, 3vw, 40px);
+  --gutter-y: clamp(16px, 3vh, 32px);
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--gutter-y) var(--gutter-x);
+}
+
+/* soft dark gradient behind the title for legibility (no box) */
+.scrim {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 55%;
+  background:
+    radial-gradient(120% 90% at 0% 100%, rgb(15 26 20 / 0.72) 0%, rgb(15 26 20 / 0.35) 45%, transparent 75%),
+    radial-gradient(40% 35% at 100% 100%, rgb(15 26 20 / 0.7) 0%, rgb(15 26 20 / 0.3) 55%, transparent 100%),
+    linear-gradient(to top, rgb(15 26 20 / 0.45), transparent 70%);
+  opacity: 0;
+  transition: opacity 1.6s ease-out;
+}
+
+.top,
+.bottom {
+  position: relative;
+  display: flex;
+  gap: 24px;
+}
+
+.top {
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.bottom {
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+/* staggered fade-in once the tree is visible */
+.wordmark,
+.nav,
+.title,
+.hint {
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 1.4s ease-out,
+    transform 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.overlay[data-ready='true'] .scrim {
+  opacity: 1;
+}
+.overlay[data-ready='true'] :is(.wordmark, .nav, .title, .hint) {
+  opacity: 1;
+  transform: none;
+}
+.overlay[data-ready='true'] .wordmark {
+  transition-delay: 0.1s;
+}
+.overlay[data-ready='true'] .nav {
+  transition-delay: 0.25s;
+}
+.overlay[data-ready='true'] .title {
+  transition-delay: 0.45s;
+}
+.overlay[data-ready='true'] .hint {
+  transition-delay: 1s;
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--top-ink);
+}
+
+.nav {
+  display: flex;
+  gap: clamp(16px, 2.5vw, 28px);
+  align-items: baseline;
+}
+
+.ui {
+  pointer-events: auto;
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 10px 2px; /* comfortable hit area without a visible box */
+  margin: -10px -2px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--top-ink);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.ui:hover {
+  opacity: 0.7;
+}
+.ui:focus-visible {
+  outline: 2px solid var(--top-ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.title {
+  margin: 0;
+  max-width: 11ch;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(56px, 7vw, 112px);
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  color: var(--bottom-ink);
+  text-wrap: balance;
+}
+
+.hint {
+  position: relative;
+  margin: 0 0 0.4em;
+  min-width: 16ch;
+  height: 1em;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--bottom-ink);
+}
+.overlay[data-ready='true'] .hint {
+  opacity: 0.7;
+}
+
+/* crossfade between the two hints */
+.hintText {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  white-space: nowrap;
+  transition: opacity 0.9s ease;
+}
+.hintText[data-show='false'] {
+  opacity: 0;
+}
+
+@media (max-width: 767px) {
+  .bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .title {
+    max-width: none;
+  }
+  .hint {
+    align-self: flex-start;
+    text-align: left;
+  }
+  .hintText {
+    left: 0;
+    right: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark,
+  .nav,
+  .title,
+  .hint {
+    transform: none;
+    transition-duration: 0.6s;
+  }
+}

@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber'
-import { forwardRef, useMemo } from 'react'
+import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { noiseGLSL } from '../shaders/noise'
 import { invAcesGLSL } from './color'
@@ -21,7 +21,7 @@ uniform float uReveal;
 uniform vec3 uHorizon, uMid, uZenith, uSunColor, uCloud, uCloudShade;
 uniform vec3 uSunDir;
 uniform float uMidHeight, uZenithHeight, uZenithPower;
-uniform float uHaloPow, uHalo, uCorePow, uCore, uSunHdr;
+uniform float uHaloPow, uHalo, uCorePow, uCore;
 uniform vec4 uCloudA, uCloudB; // scale, speed, coverage, softness
 uniform vec2 uCloudOpacity;
 uniform vec2 uCloudBand;
@@ -47,7 +47,7 @@ void main() {
   vec3 col = mix(uHorizon, uMid, smoothstep(0.0, uMidHeight, h));
   col = mix(col, uZenith, pow(smoothstep(uMidHeight * 0.6, uZenithHeight, h), uZenithPower));
 
-  // soft sun: a wide warm halo (mixed like paint) plus an HDR core that alone reaches bloom
+  // soft sun: a wide warm halo and a brighter core, mixed like paint (the bloom comes from SunGlow)
   float s = max(dot(d, normalize(uSunDir)), 0.0);
   float halo = pow(s, uHaloPow) * uHalo;
   float core = pow(s, uCorePow) * uCore;
@@ -62,7 +62,7 @@ void main() {
   col = mix(col, cloudCol, near);
 
   // authored in display space -> scene-linear, so ACES lands back on these colours
-  vec3 sceneCol = invAces(col) + uSunColor * core * uSunHdr * (1.0 - near);
+  vec3 sceneCol = invAces(col);
   gl_FragColor = vec4(sceneCol * uReveal, 1.0);
 }
 `
@@ -98,7 +98,6 @@ export const Sky = forwardRef<THREE.Mesh>(function Sky(_, ref) {
           uHalo: { value: 0 },
           uCorePow: { value: 1 },
           uCore: { value: 0 },
-          uSunHdr: { value: 1 },
           uCloudA: { value: new THREE.Vector4() },
           uCloudB: { value: new THREE.Vector4() },
           uCloudOpacity: { value: new THREE.Vector2() },
@@ -127,7 +126,6 @@ export const Sky = forwardRef<THREE.Mesh>(function Sky(_, ref) {
     u.uHalo.value = c.sunHalo
     u.uCorePow.value = c.sunCorePower
     u.uCore.value = c.sunCore
-    u.uSunHdr.value = c.sunHdr
     cloudVec(c.clouds[0], u.uCloudA.value)
     cloudVec(c.clouds[1], u.uCloudB.value)
     u.uCloudOpacity.value.set(c.clouds[0].opacity, c.clouds[1].opacity)
@@ -141,3 +139,64 @@ export const Sky = forwardRef<THREE.Mesh>(function Sky(_, ref) {
   )
 })
 
+
+const glowVertex = /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+const glowFragment = /* glsl */ `
+uniform vec3 uColor;
+uniform float uIntensity, uReveal;
+varying vec2 vUv;
+void main() {
+  float r = length(vUv - 0.5) * 2.0;
+  float a = exp(-r * r * 9.0) + exp(-r * r * 2.5) * 0.25;
+  a *= 1.0 - smoothstep(0.85, 1.0, r);
+  gl_FragColor = vec4(uColor * uIntensity * a * uReveal, 1.0);
+}
+`
+
+/**
+ * A soft additive sun sprite behind the canopy. Depth-tested, so it only shows through
+ * gaps in the leaves, like light breaking through.
+ */
+export const SunGlow = forwardRef<THREE.Mesh>(function SunGlow(_, ref) {
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: glowVertex,
+        fragmentShader: glowFragment,
+        uniforms: { uColor: { value: new THREE.Color() }, uIntensity: { value: 1 }, uReveal: HU.uSkyReveal },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        fog: false,
+      }),
+    [],
+  )
+  const self = useRef<THREE.Mesh>(null)
+  useImperativeHandle(ref, () => self.current!, [])
+  const local = useMemo(() => ({ q: new THREE.Quaternion(), dir: new THREE.Vector3() }), [])
+  useFrame(({ camera }) => {
+    const mesh = self.current
+    if (!mesh) return
+    const c = heroConfig.sky
+    material.uniforms.uColor.value.set(c.sunGlowColor)
+    material.uniforms.uIntensity.value = c.sunGlowIntensity
+    // sit on the sun direction, far out, and face the camera
+    local.dir.set(...c.sunDir).normalize()
+    mesh.position.copy(local.dir).multiplyScalar(c.radius * 0.85).add(camera.position)
+    mesh.parent?.worldToLocal(mesh.position)
+    mesh.quaternion.copy(camera.quaternion)
+    if (mesh.parent) mesh.quaternion.premultiply(mesh.parent.getWorldQuaternion(local.q).invert())
+    mesh.scale.setScalar(c.sunGlowSize)
+  })
+  return (
+    <mesh ref={self} material={material} renderOrder={0} frustumCulled={false}>
+      <planeGeometry args={[1, 1]} />
+    </mesh>
+  )
+})

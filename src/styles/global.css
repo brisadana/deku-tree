@@ -53,3 +53,10 @@ html.lenis body {
 .lenis.lenis-stopped {
   overflow: hidden;
 }
+
+/* ?debug=1 fps panel: out of the way of the wordmark */
+.hero-stats {
+  top: auto !important;
+  bottom: 0;
+  left: 0;
+}

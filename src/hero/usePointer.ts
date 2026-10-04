@@ -89,8 +89,10 @@ export function PointerTracker({ world }: { world: React.RefObject<THREE.Group |
     // ground hit (only meaningful while the pointer is inside)
     cache.ground ??= scene.getObjectByName('Ground') ?? null
     cache.tree ??= scene.getObjectByName('treeFrame') ?? null
-    let hit = false
-    if (cache.ground && pointer.inside && pointer.seen) {
+    // raycast only when the pointer moved; otherwise keep the last hit (the world turns
+    // a fraction of a degree under it, which is invisible at this scale)
+    let hit = cache.hadGround && pointer.inside && !moved
+    if (moved && cache.ground && pointer.inside && pointer.seen) {
       ray.setFromCamera(pointer.ndc, camera)
       const h = ray.intersectObject(cache.ground, false)[0]
       // the tree (roots, trunk) hides the ground behind it
@@ -101,7 +103,7 @@ export function PointerTracker({ world }: { world: React.RefObject<THREE.Group |
         hit = true
       }
     }
-    if (hit && cache.hadGround) vel.subVectors(pointer.ground, prevGround).divideScalar(dt)
+    if (hit && cache.hadGround && moved) vel.subVectors(pointer.ground, prevGround).divideScalar(dt)
     else vel.set(0, 0, 0)
     vel.y = 0
     pointer.groundVel.lerp(vel, 1 - Math.exp(-dt * 14))

@@ -66,5 +66,10 @@ const closing2 = first(marks.stop2, (r) => r[1] === 'CLOSING')
 const sleep2 = first(closing2[0], (r) => r[1] === 'SLEEP')
 console.log(`second close: CLOSING ${fmt(closing2)} → SLEEP ${fmt(sleep2)} → ${(sleep2[0] - closing2[0]).toFixed(2)}s (spec ~2.5 from fully open)`)
 let maxJump = 0
-for (let i = 1; i < log.length; i++) maxJump = Math.max(maxJump, Math.abs(log[i][2] - log[i - 1][2]))
+let jumpAt = 0
+for (let i = 1; i < log.length; i++) {
+  const j = Math.abs(log[i][2] - log[i - 1][2])
+  if (j > maxJump) [maxJump, jumpAt] = [j, i]
+}
+if (maxJump > 0.2) console.log('around the jump:', JSON.stringify(log.slice(Math.max(0, jumpAt - 3), jumpAt + 3)))
 console.log(`largest lids change between frames: ${maxJump.toFixed(3)} (blinks are 150 ms, so ≤ ~0.2 at 60 fps)`)

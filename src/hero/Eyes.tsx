@@ -5,6 +5,7 @@ import { env } from '../lib/env'
 import { treeParts } from './DekuTree'
 import { eyeInput, eyeState, stepEyes } from './eyeMachine'
 import { heroConfig } from './hero.config'
+import { registerBloom } from './Post'
 import { HU } from './uniforms'
 import { inactiveFor, pointer } from './usePointer'
 
@@ -130,7 +131,8 @@ export function Eyes() {
           fragmentShader: fragment,
           uniforms: { ...uniforms, uSide: { value: side } },
           transparent: true,
-          depthWrite: false,
+          // the almond writes depth (corners are discarded) so selective bloom can find it
+          depthWrite: true,
           polygonOffset: true,
           polygonOffsetFactor: -2,
           polygonOffsetUnits: -2,
@@ -147,6 +149,16 @@ export function Eyes() {
     },
     [geoms, materials],
   )
+
+  // the eyes are one of the two things that bloom
+  useEffect(() => {
+    const a = registerBloom(left.current)
+    const b = registerBloom(right.current)
+    return () => {
+      a?.()
+      b?.()
+    }
+  }, [])
 
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.05)

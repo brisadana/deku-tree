@@ -14,6 +14,8 @@ export const heroConfig = {
     mobile: { fov: 50, position: [0, 11, 46] as [number, number, number], target: [0, 9.5, 0] as [number, number, number] },
     /** Below this viewport width (px) the mobile framing is used. */
     mobileBreakpoint: 768,
+    /** …or when the viewport is taller than this aspect (width / height), e.g. portrait tablets. */
+    portraitAspect: 0.9,
     near: 0.5,
     far: 900,
   },
@@ -70,8 +72,10 @@ export const heroConfig = {
     sunHalo: 0.22,
     sunCorePower: 48,
     sunCore: 0.9,
-    /** Core is pushed above 1 so only it blooms. */
-    sunHdr: 2.2,
+    /** Soft additive sun sprite behind the canopy (light breaking through the leaves). */
+    sunGlowSize: 70,
+    sunGlowIntensity: 0.9,
+    sunGlowColor: '#FFE7B0',
     cloudColor: '#FFF7E4',
     cloudShade: '#D9D2B8',
     /** Two layers: [near, far]. scale = noise frequency, speed = drift (units/s). */
@@ -244,16 +248,19 @@ export const heroConfig = {
   },
 
   post: {
-    bloomThreshold: 1.0,
-    bloomSmoothing: 0.2,
-    bloomIntensity: 0.9,
-    bloomRadius: 0.7,
-    vignetteOffset: 0.3,
-    vignetteDarkness: 0.55,
-    /** Depth of field: focus distance (m from camera), range, blur. */
-    dofFocus: 34,
-    dofRange: 30,
-    dofBokeh: 1.4,
+    /** Only the eyes bloom (selective bloom); the sun glow is painted into the sky. */
+    bloomThreshold: 0.6,
+    bloomSmoothing: 0.25,
+    bloomIntensity: 1.4,
+    bloomRadius: 0.75,
+    vignetteOffset: 0.42,
+    vignetteDarkness: 0.35,
+    /** Depth of field: world focus distance (m from camera) and in-focus range; far forest softens. */
+    dofFocus: 55,
+    dofRange: 45,
+    dofBokeh: 1.6,
+    /** 'low' | 'medium' | 'high' | 'ultra' (reload). */
+    smaa: 'high' as 'low' | 'medium' | 'high' | 'ultra',
   },
 }
 

@@ -20,6 +20,7 @@
 
   /* Type */
   --font-display: 'Hylia Serif', 'Cinzel', Georgia, serif;
+  --font-mono: 'Azeret Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --font-body: 'Manrope', system-ui, sans-serif;
   --tracking-display: 0.04em;
   --tracking-eyebrow: 0.22em;

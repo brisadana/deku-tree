@@ -1,12 +1,15 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Suspense, useEffect, useRef } from 'react'
+import { PerformanceMonitor } from '@react-three/drei'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { env } from '../lib/env'
+import { env, params } from '../lib/env'
 import { sceneColor } from './color'
 import { heroConfig } from './hero.config'
+import { Overlay } from './Overlay'
 import { Parallax, parallax } from './Parallax'
 import { Post } from './Post'
-import { Sky } from './Sky'
+import { Sky, SunGlow } from './Sky'
+import { Debug } from './Debug'
 import { eyeState } from './eyeMachine'
 import { Eyes } from './Eyes'
 import { FlyingBlades, flyingStats } from './FlyingBlades'
@@ -30,10 +33,12 @@ const ease = (t: number) => 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 3)
 /** Fixed camera: desktop or mobile framing from the config (re-read every frame for the GUI). */
 function HeroCamera() {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
-  const width = useThree((s) => s.size.width)
+  const size = useThree((s) => s.size)
   useFrame(() => {
     const c = heroConfig.camera
-    const f = width < c.mobileBreakpoint ? c.mobile : c.desktop
+    // narrow or portrait screens get the wider mobile framing so the whole trunk + face fit
+    const narrow = size.width < c.mobileBreakpoint || size.width / size.height < c.portraitAspect
+    const f = narrow ? c.mobile : c.desktop
     camera.position.set(...f.position)
     camera.lookAt(...f.target)
     if (camera.fov !== f.fov || camera.near !== c.near || camera.far !== c.far) {
@@ -117,6 +122,7 @@ function Scene() {
       <Atmosphere />
       <group ref={skyPivot}>
         <Sky />
+        <SunGlow />
       </group>
       <Lights />
       <PointerTracker world={world} />
@@ -135,20 +141,29 @@ function Scene() {
 }
 
 export function Hero() {
-  const dpr = env.isMobile ? heroConfig.renderer.dprMobile : heroConfig.renderer.dprDesktop
+  const maxDpr = Math.min(window.devicePixelRatio || 1, env.isMobile ? heroConfig.renderer.dprMobile : heroConfig.renderer.dprDesktop)
+  // adaptive resolution: if the frame rate drops, render fewer pixels (down to dpr 1)
+  const [dpr, setDpr] = useState(maxDpr)
   return (
     <section className={styles.hero} aria-label="The Great Deku Tree">
       <div className={styles.canvas} aria-hidden="true">
         <Canvas
-          dpr={[1, dpr]}
+          dpr={dpr}
           shadows={{ type: THREE.PCFShadowMap }}
           gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
           camera={{ fov: 35, position: [0, 6, 34], near: 0.5, far: 900 }}
         >
+          <PerformanceMonitor
+            factor={1}
+            flipflops={4}
+            onChange={({ factor }) => setDpr(Math.max(1, Math.round((1 + (maxDpr - 1) * factor) * 4) / 4))}
+          />
           <Scene />
           <VisibilityPause />
+          {params.debug && <Debug />}
         </Canvas>
       </div>
+      <Overlay />
     </section>
   )
 }

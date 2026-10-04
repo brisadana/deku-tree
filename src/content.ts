@@ -15,6 +15,40 @@ export const credits = {
     'https://sketchfab.com/3d-models/great-deku-tree-hyrule-warriors-e786604ea35644fe99e5a57f69922689',
 }
 
+/** 3D models used on the site (both CC BY 4.0; attribution required). */
+export const modelCredits = [
+  {
+    work: 'Great Deku Tree | Hyrule Warriors',
+    author: 'Lumhax',
+    source: 'Sketchfab',
+    url: 'https://sketchfab.com/3d-models/great-deku-tree-hyrule-warriors-e786604ea35644fe99e5a57f69922689',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+    modified: false,
+  },
+  {
+    work: 'a forest (3) with a road at night for game',
+    author: 'dasy444',
+    source: 'Sketchfab',
+    url: '[FOREST MODEL URL]',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+    modified: true,
+  },
+] as const
+
+/** Hero (beat 1) copy. Nothing else is shown in the hero. */
+export const hero = {
+  wordmark: 'DEKU',
+  title: 'The Great Deku Tree',
+  spoilers: 'Spoilers',
+  sound: 'Sound',
+  soundOn: 'On',
+  soundOff: 'Off',
+  hintWake: 'Move to wake it',
+  hintEnter: 'Scroll to enter',
+}
+
 export const hud = {
   wordmark: 'DEKU',
   soundOn: 'Sound on',
