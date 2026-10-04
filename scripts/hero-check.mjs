@@ -43,7 +43,7 @@ const probe = (page) =>
     return {
       time: +h.HU.uTime.value.toFixed(2),
       reveal: +h.HU.uReveal.value.toFixed(2),
-      eyes: h.eyes ? { state: h.eyes.state, open: +h.eyes.open.toFixed(2) } : null,
+      eyes: h.eyes ? { state: h.eyes.state, lids: +h.eyes.lids.toFixed(2), glow: +h.eyes.glow.toFixed(2), pupil: [+h.eyes.pupil.x.toFixed(2), +h.eyes.pupil.y.toFixed(2)] } : null,
       pointer: h.pointer ? { speed: +h.pointer.groundSpeed.toFixed(2), onGround: h.pointer.onGround } : null,
       flying: h.flyingStats ? { ...h.flyingStats } : null,
       fps: h.fps ?? null,

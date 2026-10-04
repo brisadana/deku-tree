@@ -198,19 +198,24 @@ export const heroConfig = {
   },
 
   eyes: {
-    /** In the tree's normalised frame (base at y=0, face toward +Z). */
-    left: { position: [-1.2, 7.8, 4.2] as [number, number, number], rotation: [0, 0, -12] as [number, number, number] },
-    right: { position: [1.6, 7.8, 4.2] as [number, number, number], rotation: [0, 0, 12] as [number, number, number] },
+    /**
+     * Eye centres in the tree's normalised frame (base at y=0, face toward +Z), found by
+     * raycasting the face: the slits sit in the groove under the slanted brow plates.
+     * z is only the start of the search: each eye is conformed onto the bark by raycasts.
+     * tilt (°) follows the sad slant of the brows (inner ends up).
+     */
+    left: { position: [-1.25, 6.95, 4.2] as [number, number, number], tilt: 18 },
+    right: { position: [1.75, 6.95, 4.2] as [number, number, number], tilt: -18 },
     width: 1.4,
-    height: 0.55,
-    /** Bend radius so the eye follows the bark. */
-    curveRadius: 4,
+    height: 0.5,
+    /** Gap (m) between the bark and the eye surface. */
+    lift: 0.06,
     core: '#F4C95D',
     amber: '#5A3108',
     /** Emissive multiplier when fully open (above bloom threshold). */
-    glow: 3.2,
+    glow: 1.9,
     /** Glow during a drowsy blink. */
-    drowsyGlow: 1.2,
+    drowsyGlow: 0.8,
     pupilShift: 0.15,
     pupilSize: 0.22,
     pupilDamping: 6,

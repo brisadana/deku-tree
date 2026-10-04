@@ -39,6 +39,9 @@ const body = /* glsl */ `
 }
 `
 
+/** The tree's frame (face toward +Z, metres) and the model inside it, for raycasts. */
+export const treeParts = { frame: null as THREE.Group | null, model: null as THREE.Group | null }
+
 type Props = { children?: ReactNode }
 
 /** The Deku Tree, normalised to `heroConfig.tree.height`, mouth toward +Z. Children live in the same frame. */
@@ -83,6 +86,11 @@ export function DekuTree({ children }: Props) {
       patchMaterial(m.material as THREE.Material, 'deku-tree', uniforms, head, body)
     })
   }, [scene, uniforms])
+
+  useLayoutEffect(() => {
+    treeParts.frame = frame.current
+    treeParts.model = yaw.current
+  }, [])
 
   useFrame(() => {
     const c = heroConfig.tree
