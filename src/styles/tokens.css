@@ -1,0 +1,37 @@
+/* Design tokens — the single source for color, type and spacing. */
+@font-face {
+  font-family: 'Hylia Serif';
+  src: url('/fonts/hylia-serif.woff2') format('woff2'),
+    url('/fonts/hylia-serif.otf') format('opentype');
+  font-display: swap;
+}
+
+:root {
+  /* Color */
+  --shadow: #1b2e26;
+  --forest: #2f5d4a;
+  --moss: #7fb59a;
+  --light: #f4c95d;
+  --curse: #6b3fa0;
+  --parchment: #f2e6c9;
+  --deep: #0f1a14;
+  --card: #fbf5e6;
+  --card-border: #d8c9a6;
+
+  /* Type */
+  --font-display: 'Hylia Serif', 'Cinzel', Georgia, serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --tracking-display: 0.04em;
+  --tracking-eyebrow: 0.22em;
+  --fs-h1: clamp(3rem, 6vw + 0.5rem, 5.5rem); /* 84–88px at desktop */
+  --fs-h2: clamp(2.25rem, 4vw + 0.5rem, 4rem); /* 52–64px */
+  --fs-title: clamp(1.75rem, 2vw + 0.75rem, 2.5rem); /* 32–40px */
+  --fs-eyebrow: 0.8125rem; /* 13px */
+  --fs-body: 1.125rem; /* 18px */
+  --lh-body: 1.65;
+
+  /* Space & shape */
+  --gutter: clamp(1rem, 3vw, 2.5rem);
+  --radius-card: 24px;
+  --radius-pill: 999px;
+}

@@ -1,0 +1,22 @@
+.story {
+  position: relative;
+  z-index: 1;
+}
+
+.anchor {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+}
+
+/* Radial black wipe used by the mouth dolly. --wipe: 0 open → 1 closed. */
+.wipe {
+  --wipe: 0;
+  --r: calc((1 - var(--wipe)) * 80vmax);
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, transparent var(--r), var(--deep) calc(var(--r) + 14vmax));
+}
