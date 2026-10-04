@@ -4,9 +4,11 @@ import * as THREE from 'three'
 import { env } from '../lib/env'
 import { sceneColor } from './color'
 import { heroConfig } from './hero.config'
+import { Parallax, parallax } from './Parallax'
 import { Post } from './Post'
 import { Sky } from './Sky'
 import { HU } from './uniforms'
+import { pointer, PointerTracker } from './usePointer'
 import { preloadModels } from './useModels'
 import { Lights, World } from './World'
 import styles from './Hero.module.css'
@@ -14,7 +16,7 @@ import styles from './Hero.module.css'
 preloadModels()
 
 // dev/test hook: scripts read and tweak the live instances (Vite may serve cache-busted copies otherwise)
-if (import.meta.env.DEV) Object.assign(window, { __hero: { config: heroConfig, HU } })
+if (import.meta.env.DEV) Object.assign(window, { __hero: { config: heroConfig, HU, pointer, parallax } })
 
 /** Set once both models are in the scene. */
 const loaded = { value: false }
@@ -74,6 +76,22 @@ function Atmosphere() {
   return null
 }
 
+/** Dev only: frames per second into window.__hero.fps (for scripted checks). */
+function FpsProbe() {
+  const acc = useRef({ n: 0, t: 0 })
+  useFrame((_, dt) => {
+    const a = acc.current
+    a.n++
+    a.t += dt
+    if (a.t >= 1) {
+      ;(window as unknown as { __hero: { fps: number } }).__hero.fps = Math.round(a.n / a.t)
+      a.n = 0
+      a.t = 0
+    }
+  })
+  return null
+}
+
 function Ready() {
   useEffect(() => {
     loaded.value = true
@@ -92,11 +110,14 @@ function Scene() {
         <Sky />
       </group>
       <Lights />
+      <PointerTracker world={world} />
+      <Parallax world={world} sky={skyPivot} />
       <Suspense fallback={null}>
         <World ref={world} />
         <Ready />
       </Suspense>
       <Post />
+      {import.meta.env.DEV && <FpsProbe />}
     </>
   )
 }

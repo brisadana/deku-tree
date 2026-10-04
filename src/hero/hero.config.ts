@@ -110,8 +110,8 @@ export const heroConfig = {
   },
 
   forest: {
-    /** Foliage wind: amplitude per metre of height, speed, spatial frequency. */
-    windAmp: 0.012,
+    /** Foliage wind: sway (m) at 20 m height (grows with height², so trunks stay planted), speed, spatial frequency. */
+    windAmp: 0.12,
     windSpeed: 0.6,
     windFreq: 0.08,
     /** Slight warm/cool multiply on the forest textures (display hex). */

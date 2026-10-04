@@ -2,6 +2,7 @@
 //   node scripts/hero-check.mjs [--base http://localhost:5173] [--out shots/hero] [--tag step1]
 //     [--sizes 1440x900,390x844] [--scenario still|sweep|wake] [--video] [--query debug=1]
 //     [--headed] [--channel chrome|msedge]
+//     [--swiftshader]  software GL instead of the hardware GPU
 //     [--eval 'c.sky.sunHalo = 0']   run against heroConfig (as c) before the scenario
 //
 // still : wait for the entrance, one shot.
@@ -27,7 +28,10 @@ mkdirSync(out, { recursive: true })
 const browser = await chromium.launch({
   channel: args.channel ?? 'chrome',
   headless: !args.headed,
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+  // real GPU by default (timing-faithful); --swiftshader for a software fallback
+  args: !args.swiftshader
+    ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-gpu-rasterization']
+    : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
 })
 
 /** Reads shared hero state through Vite's module graph. */
@@ -41,6 +45,8 @@ const probe = (page) =>
       eyes: h.eyes ? { state: h.eyes.state, open: +h.eyes.open.toFixed(2) } : null,
       pointer: h.pointer ? { speed: +h.pointer.groundSpeed.toFixed(2) } : null,
       fps: h.fps ?? null,
+      yaw: h.parallax ? +(h.parallax.yaw.x * 57.3).toFixed(2) : null,
+      pitch: h.parallax ? +(h.parallax.pitch.x * 57.3).toFixed(2) : null,
     }
   })
 
@@ -106,16 +112,16 @@ for (const [w, h] of sizes) {
     await page.waitForTimeout(1500)
     await shot('2-left-down')
     // fast swipe over the meadow
-    await path(page, w, h, [[0.15, 0.9], [0.85, 0.82]], 14, 16)
+    await path(page, w, h, [[0.15, 0.9], [0.85, 0.82]], 30, 30)
     await shot('3-swipe')
     await page.waitForTimeout(400)
     await shot('4-swipe+400ms')
     await page.waitForTimeout(1600)
     await shot('5-swipe+2s')
     // leave the window → ease back to centre
-    await page.mouse.move(-10, h * 0.5)
+    await page.mouse.move(w - 2, h * 0.5)
+    await page.waitForTimeout(600)
     await page.evaluate(() => document.documentElement.dispatchEvent(new PointerEvent('pointerleave')))
-    await page.evaluate(() => document.dispatchEvent(new MouseEvent('mouseout', { relatedTarget: null })))
     await page.waitForTimeout(2200)
     await shot('6-left-window')
   } else if (scenario === 'wake') {

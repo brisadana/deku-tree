@@ -11,10 +11,11 @@ const tmpColor = new THREE.Color()
 const foliageHead = /* glsl */ `
 uniform float uTime, uWindAmp, uWindSpeed, uWindFreq;
 `
-// amplitude grows with height; two detuned sines + a cross wobble, phase by position
+// amplitude grows with height²; two detuned sines + a cross wobble, phase by position
 const foliageBody = /* glsl */ `
 {
-  float hgt = max(transformed.y + 1.0, 0.0);
+  float hgt = max(transformed.y + 1.0, 0.0) / 20.0;
+  hgt *= hgt;
   float ph = (transformed.x + transformed.z * 0.7) * uWindFreq;
   float t = uTime * uWindSpeed;
   float sway = sin(t + ph) * 0.65 + sin(t * 2.3 + ph * 1.9) * 0.25;
