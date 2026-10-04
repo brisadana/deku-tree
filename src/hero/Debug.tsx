@@ -40,7 +40,7 @@ const RANGES: Record<string, [number, number, number?]> = {
 }
 
 /** Keys read once at startup; shown but marked. */
-const RELOAD = new Set(['countDesktop', 'countMobile', 'ringRadius', 'trunkRadius', 'frontReach', 'frontHalfWidth', 'mobileHalfWidth', 'farDensity', 'bladeHeightJitter', 'clumpScale', 'clumpStrength', 'poolSize', 'dprDesktop', 'dprMobile', 'multisampling', 'height', 'shadowExtent', 'shadowMapSize', 'radius', 'smaa'])
+const RELOAD = new Set(['countDesktop', 'countMobile', 'ringRadius', 'trunkRadius', 'rootClearance', 'frontReach', 'frontHalfWidth', 'mobileHalfWidth', 'farDensity', 'bladeHeightJitter', 'clumpScale', 'clumpStrength', 'poolSize', 'dprDesktop', 'dprMobile', 'multisampling', 'height', 'shadowExtent', 'shadowMapSize', 'radius', 'smaa'])
 
 function guessRange(key: string, v: number): [number, number, number] {
   const r = RANGES[key]

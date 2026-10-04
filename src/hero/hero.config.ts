@@ -138,8 +138,8 @@ export const heroConfig = {
 
   grass: {
     /** Blade counts (reload). */
-    countDesktop: 30000,
-    countMobile: 8000,
+    countDesktop: 42000,
+    countMobile: 10000,
     /** Placement area (reload). */
     ringRadius: 17,
     /** The meadow also runs toward the camera along the path: up to z = frontReach, |x| < frontHalfWidth. */
@@ -147,7 +147,10 @@ export const heroConfig = {
     frontHalfWidth: 11,
     /** Mobile sees a narrower strip; blades outside |x| < this are skipped there (reload). */
     mobileHalfWidth: 8,
-    trunkRadius: 7.5,
+    /** Hard minimum distance from the trunk axis; the real limit is the root footprint. */
+    trunkRadius: 2.5,
+    /** Root footprint value (0..1, soft edge) above which no grass grows. */
+    rootClearance: 0.55,
     /** Density falloff: probability multiplier at the far side of the meadow (0..1). */
     farDensity: 0.3,
     bladeHeight: 0.55,
@@ -199,6 +202,31 @@ export const heroConfig = {
     bladeColor: '#D3E08C',
     leafColor: '#D9C27A',
     colorJitter: 0.25,
+  },
+
+  /** Leaves that now and then break off the canopy and drift toward the viewer. */
+  canopyLeaves: {
+    poolSize: 28,
+    /** Seconds between releases, and how many leaves a release can hold. */
+    everyMin: 1.6,
+    everyMax: 4.5,
+    burstMax: 3,
+    /** Where they leave the canopy (tree frame): height range and front-half spread. */
+    fromHeight: [14, 21] as [number, number],
+    fromWidth: 18,
+    /** Travel speed (m/s) toward a point around the camera, ± jitter fraction. */
+    speed: 7.5,
+    speedJitter: 0.35,
+    /** Lateral / vertical spread (m) of where they pass the camera. */
+    passSpread: [9, 5] as [number, number],
+    /** Side-to-side flutter (m/s) and its frequency (Hz); tumbling speed. */
+    flutter: 1.6,
+    flutterFreq: 0.6,
+    spin: 2.6,
+    size: 0.85,
+    /** They shrink away inside this distance from the camera (m), before reaching the lens. */
+    fadeNear: 4,
+    colors: ['#5E7F30', '#7A963A', '#9AA74A', '#B9A95C'],
   },
 
   eyes: {
@@ -255,8 +283,8 @@ export const heroConfig = {
     bloomRadius: 0.75,
     vignetteOffset: 0.42,
     vignetteDarkness: 0.35,
-    /** Depth of field: world focus distance (m from camera) and in-focus range; far forest softens. */
-    dofFocus: 55,
+    /** Far-only depth of field: sharp up to dofFocus (m from camera, the tree is ~55), soft over dofRange beyond. */
+    dofFocus: 62,
     dofRange: 45,
     dofBokeh: 1.6,
     /** 'low' | 'medium' | 'high' | 'ultra' (reload). */

@@ -147,3 +147,81 @@ export function buildGroundField(mesh: THREE.Mesh, extent: number, cell: number)
     },
   }
 }
+
+/**
+ * Top-down footprint of the tree's roots and trunk on the ground grid (0 = free, 1 = covered),
+ * rasterised from every tree triangle that reaches below `maxY` metres, plus a soft fringe.
+ * `space` is the object whose local frame the grid uses (the world group).
+ */
+export function buildTreeFootprint(field: GroundField, model: THREE.Object3D, space: THREE.Object3D, maxY = 2.5) {
+  const { n, cell, extent } = field
+  const foot = new Float32Array(n * n)
+  space.updateMatrixWorld(true)
+  const spaceInv = space.matrixWorld.clone().invert()
+  const rel = new THREE.Matrix4()
+  const a = new THREE.Vector3()
+  const b = new THREE.Vector3()
+  const c = new THREE.Vector3()
+  const mark = (x: number, z: number) => {
+    const gx = Math.floor((x + extent) / cell)
+    const gz = Math.floor((z + extent) / cell)
+    if (gx >= 0 && gz >= 0 && gx < n && gz < n) foot[gz * n + gx] = 1
+  }
+  model.traverse((o) => {
+    const mesh = o as THREE.Mesh
+    if (!mesh.isMesh) return
+    rel.multiplyMatrices(spaceInv, mesh.matrixWorld)
+    const pos = mesh.geometry.attributes.position
+    const index = mesh.geometry.index
+    const count = index ? index.count : pos.count
+    for (let k = 0; k < count; k += 3) {
+      const ia = index ? index.getX(k) : k
+      const ib = index ? index.getX(k + 1) : k + 1
+      const ic = index ? index.getX(k + 2) : k + 2
+      a.fromBufferAttribute(pos, ia).applyMatrix4(rel)
+      b.fromBufferAttribute(pos, ib).applyMatrix4(rel)
+      c.fromBufferAttribute(pos, ic).applyMatrix4(rel)
+      if (Math.min(a.y, b.y, c.y) > maxY) continue
+      // sample the triangle densely (also catches near-vertical walls)
+      const span = Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a))
+      const steps = Math.max(1, Math.ceil(span / (cell * 0.7)))
+      for (let i = 0; i <= steps; i++)
+        for (let j = 0; j <= steps - i; j++) {
+          const u = i / steps
+          const v = j / steps
+          const w = 1 - u - v
+          mark(a.x * w + b.x * u + c.x * v, a.z * w + b.z * u + c.z * v)
+        }
+    }
+  })
+  // fill enclosed holes (inside the trunk shell): flood the outside, everything unreached is covered
+  const outside = new Uint8Array(n * n)
+  const stack: number[] = [0]
+  outside[0] = 1
+  while (stack.length) {
+    const k = stack.pop()!
+    const x = k % n
+    const z = (k / n) | 0
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx
+      const nz = z + dz
+      if (nx < 0 || nz < 0 || nx >= n || nz >= n) continue
+      const q = nz * n + nx
+      if (outside[q] || foot[q] >= 1) continue
+      outside[q] = 1
+      stack.push(q)
+    }
+  }
+  for (let k = 0; k < n * n; k++) if (!outside[k]) foot[k] = 1
+  // soft fringe so blades thin out and shorten against the roots
+  for (let pass = 0; pass < 3; pass++) {
+    const soft = foot.slice()
+    for (let z = 1; z < n - 1; z++)
+      for (let x = 1; x < n - 1; x++) {
+        const k = z * n + x
+        soft[k] = Math.max(foot[k], (foot[k - 1] + foot[k + 1] + foot[k - n] + foot[k + n]) * 0.25)
+      }
+    foot.set(soft)
+  }
+  return foot
+}

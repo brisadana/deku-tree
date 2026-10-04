@@ -33,6 +33,17 @@ export function Post() {
   const vignetteRef = useRef<VignetteEffect>(null)
   const p = heroConfig.post
 
+  // DOF only on the far forest: replace the symmetric circle of confusion with a one-sided
+  // ramp, sharp from the lens out to dofFocus, softening over dofRange metres beyond it
+  useEffect(() => {
+    const coc = dofRef.current?.cocMaterial
+    if (!coc) return
+    const from = 'float magnitude=smoothstep(0.0,focusRange,abs(signedDistance));gl_FragColor.rg=magnitude*vec2(step(signedDistance,0.0),step(0.0,signedDistance));'
+    if (!coc.fragmentShader.includes(from)) return console.warn('[hero] DOF patch: CoC shader changed, using default')
+    coc.fragmentShader = coc.fragmentShader.replace(from, 'float magnitude=smoothstep(0.0,focusRange,signedDistance);gl_FragColor.rg=vec2(0.0,magnitude);')
+    coc.needsUpdate = true
+  }, [])
+
   useEffect(() => {
     const e = bloomRef.current
     if (!e) return

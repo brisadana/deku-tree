@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber'
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { env } from '../lib/env'
 import { heroConfig } from './hero.config'
@@ -12,28 +12,67 @@ import { pointer } from './usePointer'
  * A 2×1 atlas of white cutouts, tinted per instance:
  * left = a single grass blade, right = a small leaf.
  */
-function makeAtlas() {
-  const w = 128
-  const h = 64
+export function makeAtlas() {
+  // 256×128: each cell is 128×128. Greyscale, so the per-instance colour tints it.
+  const S = 128
   const cv = document.createElement('canvas')
-  cv.width = w
-  cv.height = h
+  cv.width = S * 2
+  cv.height = S
   const g = cv.getContext('2d')!
-  g.fillStyle = '#fff'
-  // blade: thin, slightly curved, pointed
+
+  // blade: thin, slightly curved, pointed, darker toward the base
+  const bg = g.createLinearGradient(0, S, 0, 0)
+  bg.addColorStop(0, '#9a9a9a')
+  bg.addColorStop(1, '#ffffff')
+  g.fillStyle = bg
   g.beginPath()
-  g.moveTo(22, 62)
-  g.quadraticCurveTo(20, 28, 38, 2)
-  g.quadraticCurveTo(34, 30, 42, 62)
+  g.moveTo(52, 126)
+  g.quadraticCurveTo(46, 60, 76, 3)
+  g.quadraticCurveTo(66, 62, 74, 126)
   g.closePath()
   g.fill()
-  // leaf: almond with a stem
+
+  // leaf: pointed ovate shape with a short stem, soft shading, midrib and side veins
+  const cx = S + S / 2
+  const leaf = new Path2D()
+  leaf.moveTo(cx, 6) // tip
+  leaf.bezierCurveTo(cx + 30, 30, cx + 34, 72, cx + 3, 104)
+  leaf.lineTo(cx - 3, 104)
+  leaf.bezierCurveTo(cx - 34, 72, cx - 30, 30, cx, 6)
+  const lg = g.createRadialGradient(cx - 8, 52, 4, cx, 60, 56)
+  lg.addColorStop(0, '#ffffff')
+  lg.addColorStop(0.7, '#d6d6d6')
+  lg.addColorStop(1, '#8c8c8c')
+  g.fillStyle = lg
+  g.fill(leaf)
+  // stem
+  g.strokeStyle = '#7a7a7a'
+  g.lineWidth = 3
   g.beginPath()
-  g.moveTo(96, 6)
-  g.bezierCurveTo(118, 18, 116, 44, 96, 54)
-  g.bezierCurveTo(76, 44, 74, 18, 96, 6)
-  g.fill()
-  g.fillRect(95, 52, 2, 10)
+  g.moveTo(cx, 102)
+  g.quadraticCurveTo(cx + 2, 114, cx - 2, 124)
+  g.stroke()
+  // veins, clipped to the leaf
+  g.save()
+  g.clip(leaf)
+  g.strokeStyle = 'rgba(70,70,70,0.55)'
+  g.lineWidth = 2
+  g.beginPath()
+  g.moveTo(cx, 12)
+  g.quadraticCurveTo(cx + 2, 60, cx, 104)
+  g.stroke()
+  g.lineWidth = 1.2
+  for (let k = 0; k < 6; k++) {
+    const y = 26 + k * 13
+    for (const side of [-1, 1]) {
+      g.beginPath()
+      g.moveTo(cx + side * 1, y + 8)
+      g.quadraticCurveTo(cx + side * 12, y + 2, cx + side * 26, y - 6)
+      g.stroke()
+    }
+  }
+  g.restore()
+
   const tex = new THREE.CanvasTexture(cv)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 4
@@ -79,7 +118,6 @@ function curl(p: THREE.Vector3, t: number, scale: number, out: THREE.Vector3) {
 /** Loose blades and small leaves that lift off when the cursor sweeps fast over the grass. */
 export function FlyingBlades() {
   const field = useGroundField()
-  const mesh = useRef<THREE.InstancedMesh>(null)
   const n = heroConfig.blades.poolSize
   const state = useMemo(
     () => ({
@@ -125,21 +163,25 @@ export function FlyingBlades() {
     return { geometry, material }
   }, [n])
 
-  useLayoutEffect(() => {
-    const m = mesh.current
-    if (!m) return
-    tmpM.makeScale(0, 0, 0)
-    for (let i = 0; i < n; i++) {
-      m.setMatrixAt(i, tmpM)
-      m.setColorAt(i, tmpC.set('#ffffff'))
-    }
-    m.instanceMatrix.needsUpdate = true
-    return () => {
+  // one instance, created here and mounted with <primitive>, so the matrices we write are the ones drawn
+  const instanced = useMemo(() => {
+    const im = new THREE.InstancedMesh(geometry, material, n)
+    im.frustumCulled = false
+    for (let i = 0; i < n; i++) im.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0))
+    im.setColorAt(0, new THREE.Color('#ffffff'))
+    for (let i = 1; i < n; i++) im.setColorAt(i, new THREE.Color('#ffffff'))
+    return im
+  }, [geometry, material, n])
+  const mesh = { current: instanced }
+
+  useEffect(
+    () => () => {
       geometry.dispose()
       material.map?.dispose()
       material.dispose()
-    }
-  }, [n, geometry, material])
+    },
+    [geometry, material],
+  )
 
   function spawn(c: typeof heroConfig.blades) {
     const p = state.pool.find((q) => !q.alive)
@@ -201,12 +243,14 @@ export function FlyingBlades() {
       state.budget = Math.max(0, state.budget - dt * 10)
     }
 
-    let any = false
     let alive = 0
     for (let i = 0; i < state.pool.length; i++) {
       const p = state.pool[i]
-      if (!p.alive) continue
-      any = true
+      // every slot is written every frame (cheap), so unused ones can never linger visibly
+      if (!p.alive) {
+        m.setMatrixAt(i, tmpM.makeScale(0, 0, 0))
+        continue
+      }
       alive++
       p.age += dt
       if (p.age >= p.life) {
@@ -238,10 +282,10 @@ export function FlyingBlades() {
       tmpS.x *= p.leaf ? 0.8 : 0.6
       m.setMatrixAt(i, tmpM.compose(p.pos, tmpQ, tmpS))
     }
-    if (any) m.instanceMatrix.needsUpdate = true
+    m.instanceMatrix.needsUpdate = true
     flyingStats.alive = alive
   })
 
   if (env.reducedMotion) return null
-  return <instancedMesh ref={mesh} args={[geometry, material, n]} frustumCulled={false} />
+  return <primitive object={instanced} />
 }

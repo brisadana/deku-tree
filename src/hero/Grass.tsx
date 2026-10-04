@@ -4,7 +4,8 @@ import * as THREE from 'three'
 import { env } from '../lib/env'
 import { noiseGLSL } from '../shaders/noise'
 import { heroConfig } from './hero.config'
-import { useGroundField, type GroundField } from './groundField'
+import { treeParts } from './DekuTree'
+import { buildTreeFootprint, useGroundField, type GroundField } from './groundField'
 import { HU } from './uniforms'
 import { pointer } from './usePointer'
 
@@ -41,12 +42,24 @@ function vnoise(x: number, z: number) {
   return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz
 }
 
+/** Root/trunk footprint on the ground grid (0 free → 1 covered), built once the tree is in place. */
+let footprint: Float32Array | null = null
+
+/** How much the tree's roots cover x,z (0..1, soft at the edges). */
+function rootsAt(field: GroundField, x: number, z: number) {
+  if (!footprint) return Math.hypot(x, z) < heroConfig.grass.trunkRadius + 4 ? 1 : 0
+  const gx = Math.floor((x + field.extent) / field.cell)
+  const gz = Math.floor((z + field.extent) / field.cell)
+  if (gx < 0 || gz < 0 || gx >= field.n || gz >= field.n) return 0
+  return footprint[gz * field.n + gx]
+}
+
 /** True where grass grows (same rules as placement, without the randomness). */
 export function meadowAt(field: GroundField, x: number, z: number) {
   const c = heroConfig.grass
   const r = Math.hypot(x, z)
   const inside = r < c.ringRadius || (z > 0 && z < c.frontReach && Math.abs(x) < c.frontHalfWidth)
-  return inside && r > c.trunkRadius && field.dirtAt(x, z) < 0.4 && !Number.isNaN(field.height(x, z))
+  return inside && r > c.trunkRadius && rootsAt(field, x, z) < c.rootClearance && field.dirtAt(x, z) < 0.4 && !Number.isNaN(field.height(x, z))
 }
 
 /** Random blade roots inside the meadow: off the path, clear of the trunk, denser near the camera. */
@@ -66,12 +79,15 @@ function placeBlades(field: GroundField, count: number) {
     if (!inDisc && !inFront) continue
     if (env.isMobile && Math.abs(x) > c.mobileHalfWidth) continue
     if (r < c.trunkRadius) continue
+    // grass grows right up to the roots, thinning and shortening against them
+    const rootCover = rootsAt(field, x, z)
+    if (rootCover >= c.rootClearance || Math.random() < rootCover * 0.8) continue
     // clumps: some patches lush and tall, others thin and short
     const clump = vnoise(x / c.clumpScale, z / c.clumpScale) * 0.65 + vnoise(x / (c.clumpScale * 0.37), z / (c.clumpScale * 0.37)) * 0.35
     const lush = 1 - c.clumpStrength + c.clumpStrength * clump * 1.6
     if (Math.random() > lush) continue
     // blades get shorter toward the roots
-    const nearTrunk = 1 - THREE.MathUtils.smoothstep(r, c.trunkRadius, c.trunkRadius + 3)
+    const nearTrunk = rootCover / c.rootClearance
     // camera side (+z) is denser
     const near = THREE.MathUtils.smoothstep(z, -c.ringRadius, c.frontReach * 0.7)
     if (Math.random() > THREE.MathUtils.lerp(c.farDensity, 1, near)) continue
@@ -207,10 +223,7 @@ export function Grass() {
 
   const { geometry, uniforms, material } = useMemo(() => {
     const geometry = bladeGeometry()
-    const placed = placeBlades(field, count)
-    geometry.setAttribute('aRoot', new THREE.InstancedBufferAttribute(placed.roots, 3))
-    geometry.setAttribute('aBlade', new THREE.InstancedBufferAttribute(placed.blades, 4))
-    geometry.instanceCount = placed.count
+    geometry.instanceCount = 0
 
     const uniforms = {
       uTime: HU.uTime,
@@ -247,6 +260,15 @@ export function Grass() {
     material.customProgramCacheKey = () => 'hero-grass'
     return { geometry, uniforms, material }
   }, [field, count])
+
+  // place blades once the tree is in the scene, so they can hug its roots
+  useLayoutEffect(() => {
+    if (treeParts.model && treeParts.frame?.parent) footprint = buildTreeFootprint(field, treeParts.model, treeParts.frame.parent)
+    const placed = placeBlades(field, count)
+    geometry.setAttribute('aRoot', new THREE.InstancedBufferAttribute(placed.roots, 3))
+    geometry.setAttribute('aBlade', new THREE.InstancedBufferAttribute(placed.blades, 4))
+    geometry.instanceCount = placed.count
+  }, [field, count, geometry])
 
   useLayoutEffect(() => () => geometry.dispose(), [geometry])
 

@@ -9,6 +9,7 @@ import { Overlay } from './Overlay'
 import { Parallax, parallax } from './Parallax'
 import { Post } from './Post'
 import { Sky, SunGlow } from './Sky'
+import { CanopyLeaves, canopyLeafStats } from './CanopyLeaves'
 import { Debug } from './Debug'
 import { eyeState } from './eyeMachine'
 import { Eyes } from './Eyes'
@@ -23,7 +24,7 @@ import styles from './Hero.module.css'
 preloadModels()
 
 // dev/test hook: scripts read and tweak the live instances (Vite may serve cache-busted copies otherwise)
-if (import.meta.env.DEV) Object.assign(window, { __hero: { config: heroConfig, HU, pointer, parallax, trail, flyingStats, eyes: eyeState } })
+if (import.meta.env.DEV) Object.assign(window, { __hero: { config: heroConfig, HU, pointer, parallax, trail, flyingStats, eyes: eyeState, canopyLeafStats } })
 
 /** Set once both models are in the scene. */
 const loaded = { value: false }
@@ -131,6 +132,7 @@ function Scene() {
         <World ref={world} treeChildren={<Eyes />}>
           <Grass />
           <FlyingBlades />
+          <CanopyLeaves />
         </World>
         <Ready />
       </Suspense>
