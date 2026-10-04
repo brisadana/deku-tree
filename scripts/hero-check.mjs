@@ -2,6 +2,7 @@
 //   node scripts/hero-check.mjs [--base http://localhost:5173] [--out shots/hero] [--tag step1]
 //     [--sizes 1440x900,390x844] [--scenario still|sweep|wake] [--video] [--query debug=1]
 //     [--headed] [--channel chrome|msedge]
+//     [--crop]  only the bottom 40 % (the meadow)
 //     [--swiftshader]  software GL instead of the hardware GPU
 //     [--eval 'c.sky.sunHalo = 0']   run against heroConfig (as c) before the scenario
 //
@@ -9,7 +10,7 @@
 // sweep : shot before, then a fast pointer swipe across the meadow, shots during / after.
 // wake  : sleep shot, move → shots while waking/awake, stop → shots while closing/asleep.
 import { chromium } from 'playwright-core'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => {
@@ -43,7 +44,8 @@ const probe = (page) =>
       time: +h.HU.uTime.value.toFixed(2),
       reveal: +h.HU.uReveal.value.toFixed(2),
       eyes: h.eyes ? { state: h.eyes.state, open: +h.eyes.open.toFixed(2) } : null,
-      pointer: h.pointer ? { speed: +h.pointer.groundSpeed.toFixed(2) } : null,
+      pointer: h.pointer ? { speed: +h.pointer.groundSpeed.toFixed(2), onGround: h.pointer.onGround } : null,
+      flying: h.flyingStats ? { ...h.flyingStats } : null,
       fps: h.fps ?? null,
       yaw: h.parallax ? +(h.parallax.yaw.x * 57.3).toFixed(2) : null,
       pitch: h.parallax ? +(h.parallax.pitch.x * 57.3).toFixed(2) : null,
@@ -80,7 +82,6 @@ for (const [w, h] of sizes) {
     deviceScaleFactor: 1,
     isMobile: mobile,
     hasTouch: mobile,
-    ...(args.video ? { recordVideo: { dir: `${out}/video-${tag}-${w}x${h}`, size: { width: w, height: h } } } : {}),
   })
   const page = await ctx.newPage()
   const errors = []
@@ -88,7 +89,7 @@ for (const [w, h] of sizes) {
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && errors.push(m.text()))
   await page.goto(base + '/' + query, { waitUntil: 'networkidle' })
   const shot = async (s) => {
-    await page.screenshot({ path: name(s) })
+    await page.screenshot({ path: name(s), ...(args.crop ? { clip: { x: 0, y: h * 0.6, width: w, height: h * 0.4 } } : {}) })
     console.log('saved', name(s), JSON.stringify(await probe(page)))
   }
 
@@ -96,6 +97,18 @@ for (const [w, h] of sizes) {
   if (args.eval) {
     await page.evaluate((code) => new Function('c', code)(window.__hero.config), String(args.eval))
     await page.waitForTimeout(300)
+  }
+
+  // --video: record the WebGL canvas in-page (MediaRecorder → webm), no ffmpeg needed
+  if (args.video) {
+    await page.evaluate(() => {
+      const cv = document.querySelector('canvas')
+      const rec = new MediaRecorder(cv.captureStream(30), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8e6 })
+      const chunks = []
+      rec.ondataavailable = (e) => chunks.push(e.data)
+      rec.start(250)
+      window.__rec = { rec, chunks }
+    })
   }
 
   if (scenario === 'still') {
@@ -112,7 +125,10 @@ for (const [w, h] of sizes) {
     await page.waitForTimeout(1500)
     await shot('2-left-down')
     // fast swipe over the meadow
-    await path(page, w, h, [[0.15, 0.9], [0.85, 0.82]], 30, 30)
+    // over open meadow on both sides of the path (the middle band is the tree's roots)
+    await path(page, w, h, [[0.28, 0.93], [0.44, 0.87]], 15, 25)
+    await shot('3a-mid-swipe')
+    await path(page, w, h, [[0.56, 0.87], [0.72, 0.93]], 15, 25)
     await shot('3-swipe')
     await page.waitForTimeout(400)
     await shot('4-swipe+400ms')
@@ -140,6 +156,25 @@ for (const [w, h] of sizes) {
     await shot('5-asleep-again')
   }
 
+  if (args.video) {
+    const b64 = await page.evaluate(
+      () =>
+        new Promise((res) => {
+          const { rec, chunks } = window.__rec
+          rec.onstop = async () => {
+            const buf = await new Blob(chunks, { type: 'video/webm' }).arrayBuffer()
+            let s = ''
+            const u8 = new Uint8Array(buf)
+            for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000))
+            res(btoa(s))
+          }
+          rec.stop()
+        }),
+    )
+    const file = `${out}/${tag}-${scenario}-${w}x${h}.webm`
+    writeFileSync(file, Buffer.from(b64, 'base64'))
+    console.log('video', file)
+  }
   if (errors.length) console.log('CONSOLE', w, errors.slice(0, 8))
   await ctx.close()
 }

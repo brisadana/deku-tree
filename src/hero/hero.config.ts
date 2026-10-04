@@ -10,8 +10,8 @@
  */
 export const heroConfig = {
   camera: {
-    desktop: { fov: 35, position: [0, 7, 46] as [number, number, number], target: [0, 10.5, 0] as [number, number, number] },
-    mobile: { fov: 50, position: [0, 6.5, 44] as [number, number, number], target: [0, 10, 0] as [number, number, number] },
+    desktop: { fov: 35, position: [0, 14, 52] as [number, number, number], target: [0, 8.5, 0] as [number, number, number] },
+    mobile: { fov: 50, position: [0, 11, 46] as [number, number, number], target: [0, 9.5, 0] as [number, number, number] },
     /** Below this viewport width (px) the mobile framing is used. */
     mobileBreakpoint: 768,
     near: 0.5,
@@ -138,14 +138,21 @@ export const heroConfig = {
     countMobile: 8000,
     /** Placement area (reload). */
     ringRadius: 17,
+    /** The meadow also runs toward the camera along the path: up to z = frontReach, |x| < frontHalfWidth. */
+    frontReach: 38,
+    frontHalfWidth: 11,
+    /** Mobile sees a narrower strip; blades outside |x| < this are skipped there (reload). */
+    mobileHalfWidth: 8,
     trunkRadius: 7.5,
-    pathHalfWidth: 1.6,
     /** Density falloff: probability multiplier at the far side of the meadow (0..1). */
-    farDensity: 0.35,
+    farDensity: 0.3,
     bladeHeight: 0.55,
     bladeHeightJitter: 0.45,
-    bladeWidth: 0.06,
-    baseColor: '#1E3B22',
+    /** Clumps: low-frequency height/density variation (m per clump, 0..1 strength). */
+    clumpScale: 2.2,
+    clumpStrength: 0.65,
+    bladeWidth: 0.085,
+    baseColor: '#2E4D22',
     tipColor: '#B9D57A',
     /** Per-blade hue/value variation 0..1. */
     variation: 0.35,
@@ -156,14 +163,13 @@ export const heroConfig = {
     gustSpeed: 2.2,
     /** Cursor push. */
     cursorRadius: 2.5,
-    cursorStrength: 0.9,
+    cursorStrength: 1.6,
     /** Trail length (frames sampled) and how long a parting stays open (s). */
-    trailPoints: 16,
     trailSpacing: 0.05,
-    trailLife: 1.4,
+    trailLife: 1.8,
     /** Spring back: damping and oscillation frequency of the overshoot. */
-    springDamping: 3.2,
-    springFreq: 9,
+    springDamping: 2.2,
+    springFreq: 6.5,
   },
 
   blades: {
@@ -175,16 +181,20 @@ export const heroConfig = {
     minSpeed: 1.2,
     lifeMin: 2,
     lifeMax: 4,
-    upImpulse: 2.6,
+    upImpulse: 3.6,
     alongImpulse: 0.35,
-    gravity: 3.2,
-    drag: 1.6,
+    gravity: 2.2,
+    drag: 1.1,
     curlStrength: 1.2,
     curlScale: 0.35,
     spin: 5,
-    size: 0.22,
+    size: 0.42,
     /** Fraction that are leaves rather than blades. */
     leafRatio: 0.3,
+    /** Loose blades are a little drier than living ones; leaves are straw-coloured. */
+    bladeColor: '#D3E08C',
+    leafColor: '#D9C27A',
+    colorJitter: 0.25,
   },
 
   eyes: {

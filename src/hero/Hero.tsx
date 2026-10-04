@@ -7,6 +7,8 @@ import { heroConfig } from './hero.config'
 import { Parallax, parallax } from './Parallax'
 import { Post } from './Post'
 import { Sky } from './Sky'
+import { FlyingBlades, flyingStats } from './FlyingBlades'
+import { Grass, trail } from './Grass'
 import { HU } from './uniforms'
 import { pointer, PointerTracker } from './usePointer'
 import { preloadModels } from './useModels'
@@ -16,7 +18,7 @@ import styles from './Hero.module.css'
 preloadModels()
 
 // dev/test hook: scripts read and tweak the live instances (Vite may serve cache-busted copies otherwise)
-if (import.meta.env.DEV) Object.assign(window, { __hero: { config: heroConfig, HU, pointer, parallax } })
+if (import.meta.env.DEV) Object.assign(window, { __hero: { config: heroConfig, HU, pointer, parallax, trail, flyingStats } })
 
 /** Set once both models are in the scene. */
 const loaded = { value: false }
@@ -113,7 +115,10 @@ function Scene() {
       <PointerTracker world={world} />
       <Parallax world={world} sky={skyPivot} />
       <Suspense fallback={null}>
-        <World ref={world} />
+        <World ref={world}>
+          <Grass />
+          <FlyingBlades />
+        </World>
         <Ready />
       </Suspense>
       <Post />

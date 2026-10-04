@@ -64,7 +64,7 @@ const vel = new THREE.Vector3()
 export function PointerTracker({ world }: { world: React.RefObject<THREE.Group | null> }) {
   const camera = useThree((s) => s.camera)
   const scene = useThree((s) => s.scene)
-  const cache = useMemo(() => ({ ground: null as THREE.Object3D | null, lastSeenMove: -Infinity, prevNdc: new THREE.Vector2(), hadGround: false }), [])
+  const cache = useMemo(() => ({ ground: null as THREE.Object3D | null, tree: null as THREE.Object3D | null, lastSeenMove: -Infinity, prevNdc: new THREE.Vector2(), hadGround: false }), [])
 
   useEffect(install, [])
 
@@ -88,11 +88,14 @@ export function PointerTracker({ world }: { world: React.RefObject<THREE.Group |
 
     // ground hit (only meaningful while the pointer is inside)
     cache.ground ??= scene.getObjectByName('Ground') ?? null
+    cache.tree ??= scene.getObjectByName('treeFrame') ?? null
     let hit = false
     if (cache.ground && pointer.inside && pointer.seen) {
       ray.setFromCamera(pointer.ndc, camera)
       const h = ray.intersectObject(cache.ground, false)[0]
-      if (h && world.current) {
+      // the tree (roots, trunk) hides the ground behind it
+      const t = h && cache.tree ? ray.intersectObject(cache.tree, true)[0] : undefined
+      if (h && (!t || t.distance > h.distance) && world.current) {
         prevGround.copy(pointer.ground)
         pointer.ground.copy(world.current.worldToLocal(h.point.clone()))
         hit = true
