@@ -31,9 +31,9 @@ export const heroConfig = {
   },
 
   models: {
-    forest: '/models/deku-forest.glb',
-    tree: '/models/deku-tree.glb',
-    dracoPath: '/draco/',
+    forest: `${import.meta.env.BASE_URL}models/deku-forest.glb`,
+    tree: `${import.meta.env.BASE_URL}models/deku-tree.glb`,
+    dracoPath: `${import.meta.env.BASE_URL}draco/`,
   },
 
   tree: {

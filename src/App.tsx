@@ -6,7 +6,7 @@ const Spoilers = lazy(() => import('./routes/Spoilers'))
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<Home />} />
